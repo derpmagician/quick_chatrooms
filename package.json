@@ -1,0 +1,25 @@
+{
+  "name": "chat",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "workspaces": ["server", "client"],
+  "scripts": {
+    "dev": "bun run --filter server dev & bun run --filter client dev",
+    "dev:server": "cd server && bun dev",
+    "dev:client": "cd client && bun dev",
+    "prisma:init": "bun run --filter server prisma:init",
+    "prisma:generate": "bun run --filter server prisma:generate",
+    "install:all": "cd server && bun install && cd ../client && bun install",
+    "build": "cd server && bun build && cd ../client && bun build"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "hono": "^4.12.0"
+  }
+}
