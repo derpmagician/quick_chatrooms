@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import prisma from "../utils/prisma";
 import { createRoomSchema } from "../utils/validation";
 import type { AuthContext } from "../middleware/auth";
+import { hasPermission } from "../middleware/auth";
 
 export const getRooms = async (c: AuthContext) => {
   try {
@@ -30,6 +31,11 @@ export const getRooms = async (c: AuthContext) => {
 
 export const createRoom = async (c: AuthContext) => {
   try {
+    if (!hasPermission(c, "room:create")) {
+      c.status(403);
+      return c.json({ error: "No tienes permiso para crear salas" });
+    }
+
     const body = await c.req.json();
     const { name, isPrivate } = createRoomSchema.parse(body);
 
@@ -73,6 +79,11 @@ export const joinRoom = async (c: AuthContext) => {
     if (!room) {
       c.status(404);
       return c.json({ error: "Sala no encontrada" });
+    }
+
+    if (room.isClosed) {
+      c.status(403);
+      return c.json({ error: "La sala está cerrada" });
     }
 
     if (room.members.some((m) => m.id === userId)) {
@@ -220,6 +231,11 @@ export const sendMessage = async (c: AuthContext) => {
       return c.json({ error: "Sala no encontrada" });
     }
 
+    if (room.isClosed) {
+      c.status(403);
+      return c.json({ error: "La sala está cerrada" });
+    }
+
     if (!room.members.some((m) => m.id === userId)) {
       c.status(403);
       return c.json({ error: "No eres miembro de esta sala" });
@@ -238,6 +254,119 @@ export const sendMessage = async (c: AuthContext) => {
 
     c.status(201);
     return c.json({ message });
+  } catch {
+    c.status(500);
+    return c.json({ error: "Error del servidor" });
+  }
+};
+
+export const closeRoom = async (c: AuthContext) => {
+  try {
+    if (!hasPermission(c, "room:close")) {
+      c.status(403);
+      return c.json({ error: "No tienes permiso para cerrar salas" });
+    }
+
+    const id = c.req.param("id");
+    const userId = c.get("userId");
+
+    const room = await prisma.room.findUnique({
+      where: { id },
+    });
+
+    if (!room) {
+      c.status(404);
+      return c.json({ error: "Sala no encontrada" });
+    }
+
+    if (room.ownerId !== userId && !hasPermission(c, "room:delete")) {
+      c.status(403);
+      return c.json({ error: "No puedes cerrar esta sala" });
+    }
+
+    const updatedRoom = await prisma.room.update({
+      where: { id },
+      data: { isClosed: true },
+      include: {
+        owner: { select: { id: true, username: true, avatar: true } },
+      },
+    });
+
+    return c.json({ room: updatedRoom });
+  } catch {
+    c.status(500);
+    return c.json({ error: "Error del servidor" });
+  }
+};
+
+export const openRoom = async (c: AuthContext) => {
+  try {
+    if (!hasPermission(c, "room:close")) {
+      c.status(403);
+      return c.json({ error: "No tienes permiso para abrir salas" });
+    }
+
+    const id = c.req.param("id");
+    const userId = c.get("userId");
+
+    const room = await prisma.room.findUnique({
+      where: { id },
+    });
+
+    if (!room) {
+      c.status(404);
+      return c.json({ error: "Sala no encontrada" });
+    }
+
+    if (room.ownerId !== userId && !hasPermission(c, "room:delete")) {
+      c.status(403);
+      return c.json({ error: "No puedes abrir esta sala" });
+    }
+
+    const updatedRoom = await prisma.room.update({
+      where: { id },
+      data: { isClosed: false },
+      include: {
+        owner: { select: { id: true, username: true, avatar: true } },
+      },
+    });
+
+    return c.json({ room: updatedRoom });
+  } catch {
+    c.status(500);
+    return c.json({ error: "Error del servidor" });
+  }
+};
+
+export const deleteRoom = async (c: AuthContext) => {
+  try {
+    if (!hasPermission(c, "room:delete")) {
+      c.status(403);
+      return c.json({ error: "No tienes permiso para borrar salas" });
+    }
+
+    const id = c.req.param("id");
+    const userId = c.get("userId");
+
+    const room = await prisma.room.findUnique({
+      where: { id },
+    });
+
+    if (!room) {
+      c.status(404);
+      return c.json({ error: "Sala no encontrada" });
+    }
+
+    if (room.ownerId !== userId) {
+      c.status(403);
+      return c.json({ error: "Solo el propietario puede borrar esta sala" });
+    }
+
+    await prisma.room.delete({
+      where: { id },
+    });
+
+    return c.json({ message: "Sala borrada exitosamente" });
   } catch {
     c.status(500);
     return c.json({ error: "Error del servidor" });

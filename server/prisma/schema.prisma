@@ -15,23 +15,56 @@ datasource db {
 }
 
 model User {
-  id         String    @id @default(uuid())
-  email      String    @unique
-  password   String
-  username   String    @unique
-  avatar     String?
-  createdAt  DateTime  @default(now())
-  messages   Message[]
-  rooms      Room[]    @relation("RoomMembers")
-  ownedRooms Room[]    @relation("RoomOwner")
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  username  String   @unique
+  avatar    String?
+  createdAt DateTime @default(now())
+  roleId    String?
+  role      Role?    @relation(fields: [roleId], references: [id])
+  messages  Message[]
+  rooms     Room[]   @relation("RoomMembers")
+  ownedRooms Room[]  @relation("RoomOwner")
 
   @@map("users")
+}
+
+model Role {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime @default(now())
+
+  @@map("roles")
+}
+
+model Permission {
+  id    String @id @default(uuid())
+  name  String @unique
+  desc  String?
+  roles RolePermission[]
+
+  @@map("permissions")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
 }
 
 model Room {
   id         String     @id @default(uuid())
   name       String
   isPrivate  Boolean    @default(false)
+  isClosed   Boolean    @default(false)
   ownerId    String
   owner      User       @relation("RoomOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   members    User[]     @relation("RoomMembers")

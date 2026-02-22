@@ -3,6 +3,7 @@ import { serve } from 'bun';
 import { cors } from 'hono/cors';
 import authRoutes from './routes/auth.routes';
 import roomRoutes from './routes/room.routes';
+import userRoutes from './routes/user.routes';
 import { handleWebSocket } from './utils/websocket';
 
 const app = new Hono();
@@ -14,6 +15,7 @@ app.use('*', cors({
 
 app.route('/auth', authRoutes);
 app.route('/rooms', roomRoutes);
+app.route('/users', userRoutes);
 
 app.get('/', (c) => {
   return c.text('Hello Hono!');

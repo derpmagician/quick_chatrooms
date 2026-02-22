@@ -35,11 +35,35 @@ export const register = async (c: Context) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Check if this is the first user (admin) or regular user
+    // Also check if there are any users with admin role
+    const userCount = await prisma.user.count();
+    const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
+    
+    // First user OR no users with admin role gets admin
+    const shouldBeAdmin = userCount === 0 || !(await prisma.user.findFirst({ where: { role: { name: "admin" } } }));
+    
+    const role = shouldBeAdmin 
+      ? adminRole
+      : await prisma.role.findUnique({ where: { name: "user" } });
+
     const user = await prisma.user.create({
       data: {
         email: sanitizedEmail,
         password: hashedPassword,
         username: sanitizedUsername,
+        roleId: role?.id,
+      },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -47,6 +71,8 @@ export const register = async (c: Context) => {
       userId: user.id,
       email: user.email,
     });
+
+    const permissions = user.role?.permissions.map((rp) => rp.permission.name) ?? [];
 
     c.status(201);
     return c.json({
@@ -56,6 +82,8 @@ export const register = async (c: Context) => {
         username: user.username,
         avatar: user.avatar,
         createdAt: user.createdAt,
+        role: user.role?.name ?? null,
+        permissions,
       },
       token,
     });
@@ -78,6 +106,17 @@ export const login = async (c: Context) => {
 
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
@@ -90,6 +129,8 @@ export const login = async (c: Context) => {
       email: user.email,
     });
 
+    const permissions = user.role?.permissions.map((rp) => rp.permission.name) ?? [];
+
     return c.json({
       user: {
         id: user.id,
@@ -97,6 +138,8 @@ export const login = async (c: Context) => {
         username: user.username,
         avatar: user.avatar,
         createdAt: user.createdAt,
+        role: user.role?.name ?? null,
+        permissions,
       },
       token,
     });
@@ -120,12 +163,16 @@ export const getMe = async (c: AuthContext) => {
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        username: true,
-        avatar: true,
-        createdAt: true,
+      include: {
+        role: {
+          include: {
+            permissions: {
+              include: {
+                permission: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -134,7 +181,19 @@ export const getMe = async (c: AuthContext) => {
       return c.json({ error: "Usuario no encontrado" });
     }
 
-    return c.json({ user });
+    const permissions = user.role?.permissions.map((rp) => rp.permission.name) ?? [];
+
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        createdAt: user.createdAt,
+        role: user.role?.name ?? null,
+        permissions,
+      },
+    });
   } catch {
     c.status(500);
     return c.json({ error: "Error del servidor" });
