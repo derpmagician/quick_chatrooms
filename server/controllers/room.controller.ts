@@ -198,3 +198,48 @@ export const getRoomMessages = async (c: AuthContext) => {
     return c.json({ error: "Error del servidor" });
   }
 };
+
+export const sendMessage = async (c: AuthContext) => {
+  try {
+    const id = c.req.param("id");
+    const userId = c.get("userId");
+    const { content } = await c.req.json();
+
+    if (!content || typeof content !== "string" || content.trim().length === 0) {
+      c.status(400);
+      return c.json({ error: "El mensaje no puede estar vacío" });
+    }
+
+    const room = await prisma.room.findUnique({
+      where: { id },
+      include: { members: true },
+    });
+
+    if (!room) {
+      c.status(404);
+      return c.json({ error: "Sala no encontrada" });
+    }
+
+    if (!room.members.some((m) => m.id === userId)) {
+      c.status(403);
+      return c.json({ error: "No eres miembro de esta sala" });
+    }
+
+    const message = await prisma.message.create({
+      data: {
+        content: content.trim(),
+        roomId: id,
+        userId: userId!,
+      },
+      include: {
+        user: { select: { id: true, username: true, avatar: true } },
+      },
+    });
+
+    c.status(201);
+    return c.json({ message });
+  } catch {
+    c.status(500);
+    return c.json({ error: "Error del servidor" });
+  }
+};

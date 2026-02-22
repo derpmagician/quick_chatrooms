@@ -1,54 +1,78 @@
-# client
+# Chat Client
 
-This template should help get you started developing with Vue 3 in Vite.
+Cliente de chat en tiempo real construido con Vue 3, Pinia, Vite y Bun.
 
-## Recommended IDE Setup
+## Funcionalidades
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+### Autenticación
+- **Registro de usuarios**: Crear cuenta con email, username y contraseña
+- **Login**: Iniciar sesión con email y contraseña
+- **Persistencia**: Token JWT almacenado en localStorage
 
-## Recommended Browser Setup
+### Salas (Rooms)
+- **Listar salas**: Ver todas las salas disponibles
+- **Crear sala**: Crear nuevas salas públicas
+- **Unirse a sala**: Unirse a salas existentes
+- **Salir de sala**: Abandonar una sala
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+### Mensajería en Tiempo Real
+- **WebSocket**: Comunicación en tiempo real sin polling
+- **Mensajes**: Enviar y recibir mensajes instantáneamente
+- **Indicador de escritura**: Ver cuando otros usuarios están escribiendo
+- **Usuarios en línea**: Lista de participantes conectados en tiempo real
 
-## Type Support for `.vue` Imports in TS
+### Interfaz
+- Diseño responsive
+- Lista de salas en sidebar
+- Panel de participantes con estado en línea/desconectado
+- Mensajes diferenciados por usuario
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
+## Tecnologías
 
-## Customize configuration
+- **Framework**: Vue 3 (Composition API)
+- **Gestión de estado**: Pinia
+- **Build tool**: Vite
+- **Runtime**: Bun
+- **Enrutamiento**: Vue Router
+- **HTTP Client**: Axios
+- **Estilos**: CSS nativo con variables
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+## Requisitos
 
-## Project Setup
+- Bun instalado
+- Servidor corriendo en `http://localhost:3001`
 
-```sh
+## Instalación
+
+1. Instalar dependencias:
+
+```bash
 bun install
 ```
 
-### Compile and Hot-Reload for Development
+2. Configurar variables de entorno en `.env`:
 
-```sh
-bun dev
+```env
+VITE_API_URL=http://localhost:3001
+VITE_SOCKET_URL=http://localhost:3001
 ```
 
-### Type-Check, Compile and Minify for Production
+## Ejecutar el Cliente
 
-```sh
+```bash
+bun run dev
+```
+
+El cliente abrirá en `http://localhost:5173`
+
+## Building
+
+```bash
 bun run build
 ```
 
-### Run Unit Tests with [Vitest](https://vitest.dev/)
+## Linting
 
-```sh
-bun test:unit
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-bun lint
+```bash
+bun run lint
 ```
