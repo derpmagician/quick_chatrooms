@@ -4,6 +4,28 @@ import { createRoomSchema } from "../utils/validation";
 import type { AuthContext } from "../middleware/auth";
 import { hasPermission } from "../middleware/auth";
 
+export const getAllRooms = async (c: AuthContext) => {
+  try {
+    if (!hasPermission(c, "room:delete")) {
+      c.status(403);
+      return c.json({ error: "No tienes permiso para administrar salas" });
+    }
+
+    const rooms = await prisma.room.findMany({
+      include: {
+        owner: { select: { id: true, username: true, avatar: true } },
+        _count: { select: { members: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return c.json({ rooms });
+  } catch {
+    c.status(500);
+    return c.json({ error: "Error del servidor" });
+  }
+};
+
 export const getRooms = async (c: AuthContext) => {
   try {
     const userId = c.get("userId");
@@ -81,14 +103,16 @@ export const joinRoom = async (c: AuthContext) => {
       return c.json({ error: "Sala no encontrada" });
     }
 
-    if (room.isClosed) {
-      c.status(403);
-      return c.json({ error: "La sala está cerrada" });
+    // Check if already a member
+    if (room.members.some((m) => m.id === userId)) {
+      // Already a member, allow access even if closed (to read messages)
+      return c.json({ message: "Ya eres miembro de esta sala", isClosed: room.isClosed });
     }
 
-    if (room.members.some((m) => m.id === userId)) {
-      c.status(400);
-      return c.json({ error: "Ya eres miembro de esta sala" });
+    // Not a member - can only join if not closed
+    if (room.isClosed) {
+      c.status(403);
+      return c.json({ error: "La sala está cerrada, no puedes unirte" });
     }
 
     await prisma.room.update({

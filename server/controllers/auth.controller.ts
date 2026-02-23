@@ -38,21 +38,25 @@ export const register = async (c: Context) => {
     // Check if this is the first user (admin) or regular user
     // Also check if there are any users with admin role
     const userCount = await prisma.user.count();
-    const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
     
     // First user OR no users with admin role gets admin
-    const shouldBeAdmin = userCount === 0 || !(await prisma.user.findFirst({ where: { role: { name: "admin" } } }));
+    // Use fixed role ID for admin check
+    const ADMIN_ROLE_ID = "00000000-0000-0000-0000-000000000001";
+    const USER_ROLE_ID = "00000000-0000-0000-0000-000000000003";
     
-    const role = shouldBeAdmin 
-      ? adminRole
-      : await prisma.role.findUnique({ where: { name: "user" } });
+    const hasAdmin = await prisma.user.findFirst({ 
+      where: { roleId: ADMIN_ROLE_ID }
+    });
+    
+    const shouldBeAdmin = userCount === 0 || !hasAdmin;
+    const roleId = shouldBeAdmin ? ADMIN_ROLE_ID : USER_ROLE_ID;
 
     const user = await prisma.user.create({
       data: {
         email: sanitizedEmail,
         password: hashedPassword,
         username: sanitizedUsername,
-        roleId: role?.id,
+        roleId: roleId,
       },
       include: {
         role: {
@@ -81,6 +85,8 @@ export const register = async (c: Context) => {
         email: user.email,
         username: user.username,
         avatar: user.avatar,
+        theme: user.theme,
+        preferences: user.preferences,
         createdAt: user.createdAt,
         role: user.role?.name ?? null,
         permissions,
@@ -137,6 +143,8 @@ export const login = async (c: Context) => {
         email: user.email,
         username: user.username,
         avatar: user.avatar,
+        theme: user.theme,
+        preferences: user.preferences,
         createdAt: user.createdAt,
         role: user.role?.name ?? null,
         permissions,
@@ -189,6 +197,8 @@ export const getMe = async (c: AuthContext) => {
         email: user.email,
         username: user.username,
         avatar: user.avatar,
+        theme: user.theme,
+        preferences: user.preferences,
         createdAt: user.createdAt,
         role: user.role?.name ?? null,
         permissions,

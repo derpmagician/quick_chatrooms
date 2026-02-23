@@ -1,5 +1,18 @@
 import prisma from "../utils/prisma";
 
+const FIXED_IDS = {
+  admin: "00000000-0000-0000-0000-000000000001",
+  mod: "00000000-0000-0000-0000-000000000002",
+  user: "00000000-0000-0000-0000-000000000003",
+};
+
+const PERMISSION_IDS: Record<string, string> = {
+  "room:create": "00000000-0000-0000-0000-000000000010",
+  "room:close": "00000000-0000-0000-0000-000000000011",
+  "room:delete": "00000000-0000-0000-0000-000000000012",
+  "user:role:change": "00000000-0000-0000-0000-000000000013",
+};
+
 const permissions = [
   { name: "room:create", desc: "Crear salas" },
   { name: "room:close", desc: "Cerrar salas" },
@@ -28,12 +41,16 @@ const roles = [
 async function main() {
   console.log("Seeding roles and permissions...");
 
+  // Delete existing to avoid unique constraint issues
+  await prisma.rolePermission.deleteMany();
+  await prisma.permission.deleteMany();
+  await prisma.role.deleteMany();
+
   // Create permissions
   for (const perm of permissions) {
-    await prisma.permission.upsert({
-      where: { name: perm.name },
-      update: {},
-      create: { name: perm.name, desc: perm.desc },
+    const fixedId = PERMISSION_IDS[perm.name];
+    await prisma.permission.create({
+      data: { id: fixedId, name: perm.name, desc: perm.desc },
     });
   }
   console.log("Permissions created");
@@ -45,10 +62,13 @@ async function main() {
       select: { id: true },
     });
 
+    const fixedId = FIXED_IDS[role.name as keyof typeof FIXED_IDS];
+
     await prisma.role.upsert({
-      where: { name: role.name },
+      where: { id: fixedId },
       update: {},
       create: {
+        id: fixedId,
         name: role.name,
         description: role.description,
         permissions: {

@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
-import { getRooms, createRoom, joinRoom, leaveRoom, getRoomMembers, getRoomMessages, sendMessage, closeRoom, openRoom, deleteRoom } from '../controllers/room.controller.ts';
+import { getAllRooms, getRooms, createRoom, joinRoom, leaveRoom, getRoomMembers, getRoomMessages, sendMessage, closeRoom, openRoom, deleteRoom } from '../controllers/room.controller.ts';
 import { authMiddleware } from '../middleware/auth.ts';
 
 const router = new Hono();
 
+router.get('/all', authMiddleware, getAllRooms)
 router.get('/', authMiddleware, getRooms)
 router.post('/', authMiddleware, createRoom)
 router.post('/:id/join', authMiddleware, joinRoom)

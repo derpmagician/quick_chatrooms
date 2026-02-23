@@ -1,5 +1,18 @@
 import prisma from "../utils/prisma";
 
+const FIXED_IDS = {
+  admin: "00000000-0000-0000-0000-000000000001",
+  mod: "00000000-0000-0000-0000-000000000002",
+  user: "00000000-0000-0000-0000-000000000003",
+};
+
+const PERMISSION_IDS: Record<string, string> = {
+  "room:create": "00000000-0000-0000-0000-000000000010",
+  "room:close": "00000000-0000-0000-0000-000000000011",
+  "room:delete": "00000000-0000-0000-0000-000000000012",
+  "user:role:change": "00000000-0000-0000-0000-000000000013",
+};
+
 async function main() {
   console.log("🔄 Reseteando base de datos...\n");
 
@@ -31,16 +44,16 @@ async function main() {
   const { execSync } = require("child_process");
   
   try {
-    execSync("bunx prisma migrate dev", { 
+    execSync("bunx prisma db push", { 
       stdio: "inherit",
       cwd: process.cwd() 
     });
     console.log("✅ Migraciones aplicadas!\n");
   } catch (error) {
-    console.log("⚠️  Las migraciones ya están al día o no hay nuevas.\n");
+    console.log("⚠️  Error al aplicar migraciones.\n");
   }
 
-  // 3. Semillar roles
+  // 3. Semillar roles con IDs fijos
   console.log("🌱 Creando roles y permisos...");
 
   const permissions = [
@@ -70,10 +83,9 @@ async function main() {
 
   // Create permissions
   for (const perm of permissions) {
-    await prisma.permission.upsert({
-      where: { name: perm.name },
-      update: {},
-      create: { name: perm.name, desc: perm.desc },
+    const fixedId = PERMISSION_IDS[perm.name];
+    await prisma.permission.create({
+      data: { id: fixedId, name: perm.name, desc: perm.desc },
     });
   }
   console.log("  ✓ Permisos creados");
@@ -85,10 +97,11 @@ async function main() {
       select: { id: true },
     });
 
-    await prisma.role.upsert({
-      where: { name: role.name },
-      update: {},
-      create: {
+    const fixedId = FIXED_IDS[role.name as keyof typeof FIXED_IDS];
+
+    await prisma.role.create({
+      data: {
+        id: fixedId,
         name: role.name,
         description: role.description,
         permissions: {
@@ -99,12 +112,10 @@ async function main() {
   }
   console.log("  ✓ Roles creados");
 
-  const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
-  const userRole = await prisma.role.findUnique({ where: { name: "user" } });
-
   console.log("\n📋 IDs de roles:");
-  console.log("  admin:", adminRole?.id);
-  console.log("  user:", userRole?.id);
+  console.log("  admin:", FIXED_IDS.admin);
+  console.log("  mod:", FIXED_IDS.mod);
+  console.log("  user:", FIXED_IDS.user);
 
   console.log("\n🎉 Base de datos reseteada correctamente!");
   console.log("\n⚠️  El primer usuario que se registre será ADMIN");

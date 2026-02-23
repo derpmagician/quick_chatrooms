@@ -3,6 +3,29 @@ import prisma from "../utils/prisma";
 import type { AuthContext } from "../middleware/auth";
 import { hasPermission } from "../middleware/auth";
 
+export const getRoles = async (c: AuthContext) => {
+  try {
+    if (!hasPermission(c, "user:role:change")) {
+      c.status(403);
+      return c.json({ error: "No tienes permiso para ver roles" });
+    }
+
+    const roles = await prisma.role.findMany({
+      select: {
+        id: true,
+        name: true,
+        description: true,
+      },
+      orderBy: { name: "asc" },
+    });
+
+    return c.json({ roles });
+  } catch {
+    c.status(500);
+    return c.json({ error: "Error del servidor" });
+  }
+};
+
 export const getUsers = async (c: AuthContext) => {
   try {
     const users = await prisma.user.findMany({
@@ -11,6 +34,7 @@ export const getUsers = async (c: AuthContext) => {
         email: true,
         username: true,
         avatar: true,
+        theme: true,
         createdAt: true,
         role: {
           select: {
@@ -41,6 +65,7 @@ export const getUserById = async (c: AuthContext) => {
         email: true,
         username: true,
         avatar: true,
+        theme: true,
         createdAt: true,
         role: {
           select: {
@@ -57,8 +82,19 @@ export const getUserById = async (c: AuthContext) => {
       return c.json({ error: "Usuario no encontrado" });
     }
 
-    return c.json({ user });
-  } catch {
+    return c.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        avatar: user.avatar,
+        theme: user.theme,
+        createdAt: user.createdAt,
+        role: user.role?.name ?? null,
+      },
+    });
+  } catch (err) {
+    console.error("Error in getUserById:", err);
     c.status(500);
     return c.json({ error: "Error del servidor" });
   }
@@ -105,6 +141,79 @@ export const updateUserRole = async (c: AuthContext) => {
         email: true,
         username: true,
         avatar: true,
+        theme: true,
+        preferences: true,
+        createdAt: true,
+        role: {
+          select: {
+            id: true,
+            name: true,
+            description: true,
+          },
+        },
+      },
+    });
+
+    return c.json({ user: updatedUser });
+  } catch {
+    c.status(500);
+    return c.json({ error: "Error del servidor" });
+  }
+};
+
+export const updateUser = async (c: AuthContext) => {
+  try {
+    const id = c.req.param("id");
+    const userId = c.get("userId");
+
+    if (id !== userId) {
+      c.status(403);
+      return c.json({ error: "No puedes editar otro usuario" });
+    }
+
+    const body = await c.req.json();
+    const { username, avatar, theme, preferences } = body;
+
+    if (!username || typeof username !== "string" || username.trim().length === 0) {
+      c.status(400);
+      return c.json({ error: "El nombre de usuario es requerido" });
+    }
+
+    const sanitizedUsername = username.trim();
+
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        username: sanitizedUsername,
+        NOT: { id },
+      },
+    });
+
+    if (existingUser) {
+      c.status(400);
+      return c.json({ error: "El nombre de usuario ya está en uso" });
+    }
+
+    const validThemes = ['purple', 'blue', 'green', 'pink', 'dark'];
+    if (theme && !validThemes.includes(theme)) {
+      c.status(400);
+      return c.json({ error: "Tema no válido" });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: {
+        username: sanitizedUsername,
+        ...(avatar !== undefined && { avatar }),
+        ...(theme !== undefined && { theme }),
+        ...(preferences !== undefined && { preferences }),
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        avatar: true,
+        theme: true,
+        preferences: true,
         createdAt: true,
         role: {
           select: {
